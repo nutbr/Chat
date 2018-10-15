@@ -1,0 +1,484 @@
+
+//  ViewController.h
+
+//  MultipeerConnectivity
+
+//
+
+//  Created by Sábado on 01/11/14.
+
+//  Copyright (c) 2014 RUI TOLEDO. All rights reserved.
+
+//
+
+ 
+
+#import <UIKit/UIKit.h>
+
+// Importando framework para nosso documento
+
+#import <MultipeerConnectivity/MultipeerConnectivity.h>
+
+ 
+
+ 
+
+// Importando os protocolos necessários para a implementação do nosso projeto
+
+@interface ViewController : UIViewController<UITextFieldDelegate, MCSessionDelegate, MCBrowserViewControllerDelegate>
+
+ 
+
+// Outlets e Action para nossa tela
+
+ 
+
+@property (weak, nonatomic) IBOutletUITextField *textFieldMensagem;
+
+ 
+
+@property (weak, nonatomic) IBOutletUITextView *textViewConversa;
+
+ 
+
+- (IBAction)navegar:(UIButton *)sender;
+
+ 
+
+ 
+
+// Elementos auxiliares para a nossa comunicação
+
+ 
+
+// Antigamente antes de "MCxxxx" era GKxxxx""
+
+// Disponibiliza uma interface padrão para permitir o usuário escolher quem adicionará a sessão
+
+@property(nonatomic, strong) MCBrowserViewController *browserViewController;
+
+ 
+
+// Auxilia na conexão entre os peers juntamente com o MCBrowserViewController
+
+@property(nonatomic, strong) MCAdvertiserAssistant *advertiser;
+
+ 
+
+// Criando a sessão que permitirá a navegação entre os devices conectados
+
+@property(nonatomic, strong) MCSession *mySession;
+
+ 
+
+// Identificador para o peer na session
+
+@property(nonatomic, strong) MCPeerID *myPeerID;
+
+ 
+
+ 
+
+// Métodos auxiliares para ajudar na formatação, envio e recebimento das mensagens
+
+-(void)formatarMensagem:(NSString *)umaMensagem doPeer:(MCPeerID *)umPeerID;
+
+-(void)enviarMensagem;
+
+ 
+
+@end
+
+ 
+
+//
+
+//  ViewController.m
+
+//  MultipeerConnectivity
+
+//
+
+//  Created by Sábado on 01/11/14.
+
+//  Copyright (c) 2014 RUI TOLEDO. All rights reserved.
+
+//
+
+ 
+
+#import "ViewController.h"
+
+ 
+
+@interfaceViewController ()
+
+ 
+
+@end
+
+ 
+
+@implementation ViewController
+
+ 
+
+- (void)viewDidLoad
+
+{
+
+    [superviewDidLoad];
+
+// Do any additional setup after loading the view, typically from a nib.
+
+    
+
+    // Ligando o delegate da nossa textField
+
+    self.textFieldMensagem.delegate=self;
+
+    
+
+    // Limpando a nossa textView
+
+    self.textViewConversa.text=nil;
+
+    
+
+    // Desabilitando a edição da textView
+
+    self.textViewConversa.editable=NO;
+
+    
+
+    // Iniciando nosso peerID
+
+    self.myPeerID = [[MCPeerIDalloc]initWithDisplayName:[[UIDevicecurrentDevice]name]];
+
+    
+
+    // Para não aparecer iOS Simulator no nome de todos podemos criar o ID a partir de uma string propria
+
+    self.myPeerID = [[MCPeerIDalloc]initWithDisplayName:@"RCT"];
+
+    
+
+    // Iniciando a nossa sessão
+
+    self.mySession =[[MCSessionalloc]initWithPeer:self.myPeerID];
+
+    
+
+    // Ligando o delegate da nossa session
+
+    self.mySession.delegate=self;
+
+    
+
+    // Iniciando o nosso navegador
+
+    self.browserViewController=[[MCBrowserViewControlleralloc]initWithServiceType:@"chat"session:self.mySession];
+
+    
+
+    // Ligando o delegate
+
+    self.browserViewController.delegate=self;
+
+    
+
+    // Iniciando nosso advertiser
+
+    self.advertiser = [[MCAdvertiserAssistantalloc]initWithServiceType:@"chat"discoveryInfo:nilsession:self.mySession];
+
+    
+
+    
+
+}
+
+ 
+
+- (void)didReceiveMemoryWarning
+
+{
+
+    [superdidReceiveMemoryWarning];
+
+    // Dispose of any resources that can be recreated.
+
+}
+
+ 
+
+// Action que iniciará a procura pelos peers disponiveis
+
+- (IBAction)navegar:(UIButton *)sender
+
+{
+
+    // Exibindo o nosso browserViewController
+
+    [selfpresentViewController:self.browserViewControlleranimated:YEScompletion:nil];
+
+    
+
+    // Ativando o nosso advertiser
+
+    [self.advertiserstart];
+
+    
+
+    
+
+}
+
+ 
+
+ 
+
+#pragma mark - Métodos de MCBrowserViewControllerDelegate
+
+ 
+
+// Método disparado quando o usuário cancela a seleção de peers
+
+-(void)browserViewControllerWasCancelled:(MCBrowserViewController *)browserViewController
+
+{
+
+    // Tirando o picker da cena
+
+    [browserViewController dismissViewControllerAnimated:YEScompletion:nil];
+
+    
+
+    NSLog(@"Cancelou!");
+
+}
+
+ 
+
+-(void)browserViewControllerDidFinish:(MCBrowserViewController *)browserViewController
+
+{
+
+    [browserViewController dismissViewControllerAnimated:YEScompletion:nil];
+
+    NSLog(@"Apertou Done!");
+
+    
+
+}
+
+ 
+
+ 
+
+#pragma mark - Minhas Ações
+
+ 
+
+// Método que irá formatar a nossa mensagem de maneira que nossa conversa seja exibida
+
+-(void)formatarMensagem:(NSString *)umaMensagem doPeer:(MCPeerID *)umPeerID
+
+{
+
+    // Criando uma string para nos auxiliar na formatação da mensagem
+
+    NSString *textoFinal;
+
+    
+
+    // Verificando se a mensagem foi escrita por mim
+
+    if (umPeerID==self.myPeerID)
+
+    {
+
+        textoFinal=[NSString stringWithFormat:@"\nEu: %@\n", umaMensagem];
+
+    }
+
+    else
+
+    {
+
+        textoFinal=[NSString stringWithFormat:@"\n%@: %@\n", umPeerID.displayName, umaMensagem];
+
+    }
+
+    
+
+    // COncatenando o texto já existente em nossa textView com a nova mensagem recebida
+
+    self.textViewConversa.text =[self.textViewConversa.textstringByAppendingString:textoFinal];
+
+    
+
+    
+
+}
+
+ 
+
+ 
+
+// Método que fará o envio da mensagem
+
+-(void)enviarMensagem
+
+{
+
+    // Resgatando a mensagem
+
+    NSString *mensagem=self.textFieldMensagem.text;
+
+    
+
+    // Limpando o texto da nossa textField
+
+    self.textFieldMensagem.text=@"";
+
+    
+
+    // Convertendo o texto em NSData (binário)
+
+    NSData *data = [mensagem dataUsingEncoding:NSUTF8StringEncoding];
+
+ 
+
+ 
+
+    NSError *erro;
+
+    
+
+    // Enviando nosso textopré-formatado como NSData
+
+    // &erro resgatado do C, para resgatar variaveis
+
+    [self.mySessionsendData:data toPeers:[self.mySessionconnectedPeers] withMode:MCSessionSendDataReliableerror:&erro];
+
+ 
+
+    if (erro)
+
+    {
+
+        //Tratamento do erro caso fosse necessário
+
+    }
+
+    
+
+    [selfformatarMensagem:mensagem doPeer:self.myPeerID];
+
+    
+
+ 
+
+}
+
+ 
+
+#pragma mark - Métodos de UITextFieldDelegate
+
+ 
+
+// Método que fará a chamada do método que envia a mensagem
+
+-(BOOL)textFieldShouldReturn:(UITextField *)textField
+
+{
+
+    // Verificando se o usuário preencheu corretamente o campo da mensagem
+
+    if(self.textFieldMensagem.text.length>0)
+
+    {
+
+        // caso tenha preenchido
+
+        
+
+        // Enviamos a mensagem
+
+        [selfenviarMensagem];
+
+    }
+
+    
+
+    // Baixando o teclado
+
+    [textField resignFirstResponder];
+
+    
+
+    returnYES;
+
+}
+
+ 
+
+ 
+
+#pragma mark - Métodos de MCSessionDelegate
+
+ 
+
+// Método que é disparado quando a nossa session recebe algum dado
+
+-(void)session:(MCSession *)session didReceiveData:(NSData *)data fromPeer:(MCPeerID *)peerID
+
+{
+
+    // COnvertendo a data em String
+
+    NSString *mensagem = [[NSStringalloc]initWithData:data encoding:NSUTF8StringEncoding];
+
+    
+
+    
+
+    // Rodar em paraleo - Nunca jogar um sync na MainQueue. Sempre async.
+
+    dispatch_async(dispatch_get_main_queue(), ^{
+
+       
+
+        // Tratando a mensagem
+
+        [self formatarMensagem:mensagem doPeer:peerID];
+
+        
+
+    });
+
+    
+
+}
+
+ 
+
+-(void)session:(MCSession *)session peer:(MCPeerID *)peerID didChangeState:(MCSessionState)state
+
+{
+
+    NSLog(@"didChangeState");
+
+}
+
+ 
+
+ 
+
+ 
+
+ 
+
+ 
+
+@end
